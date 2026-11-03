@@ -24,22 +24,25 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK (FIX)
+        run: |
+          echo "Android SDK already on runner"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
+          yes | sdkmanager --licenses || true
 
       - name: Install dependencies
         run: |
           npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/splash-screen
           npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=. || true
 
       - name: Verify structure
         run: |
           ls -la
-          ls -la images/
-          test -f index.html && echo "✅ index.html OK" || echo "❌ index.html manquant"
-          test -f images/icon.png && echo "✅ icon.png OK" || echo "❌ icon.png manquant"
-          test -f images/splash.png && echo "✅ splash.png OK" || echo "❌ splash.png manquant"
+          ls -la images/ || echo "Dossier images manquant"
+          test -f index.html && echo "✅ index.html OK" || (echo "❌ index.html manquant" && exit 1)
 
       - name: Create Capacitor config
         run: |
@@ -48,16 +51,7 @@ jobs:
             "appId": "com.kibwe.calculatricefacile",
             "appName": "Calculatrice facile",
             "webDir": ".",
-            "bundledWebRuntime": false,
-            "plugins": {
-              "SplashScreen": {
-                "launchShowDuration": 3000,
-                "launchAutoHide": true,
-                "backgroundColor": "#3B82F6",
-                "androidScaleType": "CENTER_CROP",
-                "showSpinner": false
-              }
-            }
+            "bundledWebRuntime": false
           }
           EOF
 
@@ -68,25 +62,17 @@ jobs:
 
       - name: Configure icons & splash
         run: |
-          ICON_SRC="images/icon.png"
-          for dir in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p android/app/src/main/res/$dir
-            cp "$ICON_SRC" android/app/src/main/res/$dir/ic_launcher.png
-            cp "$ICON_SRC" android/app/src/main/res/$dir/ic_launcher_round.png
-          done
-          mkdir -p android/app/src/main/res/drawable
-          cp images/splash.png android/app/src/main/res/drawable/splash.png || true
-
-          cat > android/app/src/main/res/values/splash_theme.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme.Splash" parent="Theme.SplashScreen">
-                  <item name="windowSplashScreenBackground">#3B82F6</item>
-                  <item name="windowSplashScreenAnimatedIcon">@drawable/splash</item>
-                  <item name="postSplashScreenTheme">@style/AppTheme</item>
-              </style>
-          </resources>
-          EOF
+          if [ -f "images/icon.png" ]; then
+            for dir in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              mkdir -p android/app/src/main/res/$dir
+              cp "images/icon.png" android/app/src/main/res/$dir/ic_launcher.png
+              cp "images/icon.png" android/app/src/main/res/$dir/ic_launcher_round.png
+            done
+          fi
+          if [ -f "images/splash.png" ]; then
+            mkdir -p android/app/src/main/res/drawable
+            cp images/splash.png android/app/src/main/res/drawable/splash.png || true
+          fi
 
       - name: Build APK Debug
         run: |
