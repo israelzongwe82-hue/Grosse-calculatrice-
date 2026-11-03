@@ -1,6 +1,6 @@
 name: Construire Calculatrice facile APK Android
 
-on:
+"on":
 workflow_dispatch:
 push:
 branches:
@@ -17,6 +17,7 @@ jobs:
 build-android:
 name: Construire l'APK Android
 runs-on: ubuntu-latest
+timeout-minutes: 45
 
 steps:
   - name: Télécharger le dépôt
@@ -39,15 +40,18 @@ steps:
       packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
   - name: Vérifier les fichiers nécessaires
+    shell: bash
     run: |
-      test -f index.html || { echo "ERREUR : index.html introuvable."; exit 1; }
-      test -f images/icon.png || { echo "ERREUR : images/icon.png introuvable."; exit 1; }
+      set -e
+      test -f index.html || { echo "ERREUR : index.html introuvable"; exit 1; }
+      test -f images/icon.png || { echo "ERREUR : images/icon.png introuvable"; exit 1; }
+
       if [ ! -f images/splash.png ] && [ ! -f images/splash-screen.png ]; then
-        echo "ERREUR : écran de démarrage introuvable."
+        echo "ERREUR : images/splash.png ou images/splash-screen.png introuvable"
         exit 1
       fi
 
-  - name: Installer Capacitor
+  - name: Initialiser Capacitor
     run: |
       npm init -y
       npm install @capacitor/core @capacitor/android @capacitor/cli @capacitor/assets
@@ -60,7 +64,7 @@ steps:
       }
       JSON
 
-  - name: Préparer les fichiers
+  - name: Préparer les fichiers de l'application
     run: |
       mkdir -p www
       cp index.html www/
@@ -77,22 +81,38 @@ steps:
 
       def prepare(source, size, background):
           image = Image.open(source).convert("RGBA")
-          image = ImageOps.contain(image, (size, size), method=Image.Resampling.LANCZOS)
+          image = ImageOps.contain(
+              image, (size, size),
+              method=Image.Resampling.LANCZOS
+          )
           canvas = Image.new("RGBA", (size, size), background)
-          canvas.alpha_composite(image, ((size-image.width)//2, (size-image.height)//2))
+          canvas.alpha_composite(
+              image,
+              ((size - image.width) // 2,
+               (size - image.height) // 2)
+          )
           return canvas
 
       icon = prepare("images/icon.png", 1024, (0, 0, 0, 0))
       icon.save("assets/icon-only.png")
       icon.save("assets/icon-foreground.png")
 
-      Image.new("RGB", (1024, 1024), (7, 20, 38)).save("assets/icon-background.png")
+      Image.new(
+          "RGB", (1024, 1024), (7, 20, 38)
+      ).save("assets/icon-background.png")
 
-      splash = "images/splash.png" if Path("images/splash.png").is_file() else "images/splash-screen.png"
-      prepare(splash, 2732, (7, 20, 38, 255)).convert("RGB").save("assets/splash.png")
+      splash_source = (
+          "images/splash.png"
+          if Path("images/splash.png").is_file()
+          else "images/splash-screen.png"
+      )
+
+      prepare(
+          splash_source, 2732, (7, 20, 38, 255)
+      ).convert("RGB").save("assets/splash.png")
       PY
 
-  - name: Ajouter Android
+  - name: Ajouter le projet Android
     run: npx cap add android
 
   - name: Générer les ressources Android
