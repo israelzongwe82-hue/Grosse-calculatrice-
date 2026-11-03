@@ -10,78 +10,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK (FIX)
+      - name: Setup Android SDK
         run: |
-          echo "Android SDK already on runner"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           yes | sdkmanager --licenses || true
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/splash-screen
-          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=. || true
+          npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Verify structure
+      - name: Init Capacitor
         run: |
-          ls -la
-          ls -la images/ || echo "Dossier images manquant"
-          test -f index.html && echo "✅ index.html OK" || (echo "❌ index.html manquant" && exit 1)
+          rm -rf android capacitor.config.json
+          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=.
 
-      - name: Create Capacitor config
+      - name: Add Android
         run: |
-          cat > capacitor.config.json << 'EOF'
-          {
-            "appId": "com.kibwe.calculatricefacile",
-            "appName": "Calculatrice facile",
-            "webDir": ".",
-            "bundledWebRuntime": false
-          }
-          EOF
+          npx cap add android
+          npx cap copy
 
-      - name: Add Android platform
-        run: |
-          npx cap add android || echo "Android déjà là"
-          npx cap copy android
-
-      - name: Configure icons & splash
+      - name: Inject icons
         run: |
           if [ -f "images/icon.png" ]; then
-            for dir in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-              mkdir -p android/app/src/main/res/$dir
-              cp "images/icon.png" android/app/src/main/res/$dir/ic_launcher.png
-              cp "images/icon.png" android/app/src/main/res/$dir/ic_launcher_round.png
+            for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              mkdir -p android/app/src/main/res/$d
+              cp images/icon.png android/app/src/main/res/$d/ic_launcher.png
+              cp images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
             done
           fi
-          if [ -f "images/splash.png" ]; then
-            mkdir -p android/app/src/main/res/drawable
-            cp images/splash.png android/app/src/main/res/drawable/splash.png || true
-          fi
 
-      - name: Build APK Debug
+      - name: BUILD WITH FULL LOG
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --stacktrace --info --no-daemon
+        continue-on-error: false
 
-      - name: Upload APK
+      - name: Upload APK if success
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: calculatrice-facile-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: android/app/build/
