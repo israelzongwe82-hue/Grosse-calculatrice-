@@ -1,0 +1,123 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Grosse Calculatrice" com.kibwe.calculatrice --web-dir=. || true
+
+      - name: Verify project structure
+        run: |
+          echo "Structure:"
+          ls -la
+          ls -la images/
+          test -f index.html && echo "✅ index.html trouvé" || echo "❌ index.html manquant"
+          test -f images/icon.png && echo "✅ icon.png trouvé" || echo "❌ icon.png manquant"
+          test -f images/splash.png && echo "✅ splash.png trouvé" || echo "❌ splash.png manquant"
+
+      - name: Create Capacitor config
+        run: |
+          cat > capacitor.config.json << 'EOF'
+          {
+            "appId": "com.kibwe.calculatrice",
+            "appName": "Grosse Calculatrice",
+            "webDir": ".",
+            "bundledWebRuntime": false,
+            "plugins": {
+              "SplashScreen": {
+                "launchShowDuration": 3000,
+                "launchAutoHide": true,
+                "backgroundColor": "#3B82F6",
+                "androidScaleType": "CENTER_CROP",
+                "showSpinner": false
+              }
+            }
+          }
+          EOF
+          cat capacitor.config.json
+
+      - name: Add Android platform
+        run: |
+          npx cap add android || echo "Android déjà ajouté"
+          npx cap copy android
+
+      - name: Configure Android icons & splash
+        run: |
+          # Copie icon.png vers les dossiers mipmap Android
+          ICON_SRC="images/icon.png"
+          
+          # Crée les icônes pour toutes les densités
+          for dir in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p android/app/src/main/res/$dir
+            cp "$ICON_SRC" android/app/src/main/res/$dir/ic_launcher.png
+            cp "$ICON_SRC" android/app/src/main/res/$dir/ic_launcher_round.png
+          done
+
+          # Splash - copie dans drawable
+          mkdir -p android/app/src/main/res/drawable
+          cp images/splash.png android/app/src/main/res/drawable/splash.png || true
+          cp images/icon.png android/app/src/main/res/drawable/icon.png
+
+          # Modifie styles.xml pour le splash
+          cat > android/app/src/main/res/values/splash_theme.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme.Splash" parent="Theme.SplashScreen">
+                  <item name="windowSplashScreenBackground">#3B82F6</item>
+                  <item name="windowSplashScreenAnimatedIcon">@drawable/splash</item>
+                  <item name="postSplashScreenTheme">@style/AppTheme</item>
+              </style>
+          </resources>
+          EOF
+
+      - name: Build APK Debug
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Build APK Release (unsigned)
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+        continue-on-error: true
+
+      - name: Upload APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: grosse-calculatrice-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: grosse-calculatrice-release
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        continue-on-error: true
