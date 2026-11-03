@@ -1,14 +1,9 @@
 {
-  "name": "grosse-calculatrice",
+  "name": "calculatrice-facile",
   "version": "1.0.0",
-  "description": "Grosse Calculatrice par KIBWE ZONGWE Israël",
+  "description": "Calculatrice facile par KIBWE ZONGWE Israël",
   "main": "index.html",
-  "scripts": {
-    "build": "npx cap copy",
-    "android": "npx cap open android"
-  },
   "author": "KIBWE ZONGWE Israël",
-  "license": "MIT",
   "dependencies": {
     "@capacitor/core": "^6.0.0",
     "@capacitor/android": "^6.0.0",
