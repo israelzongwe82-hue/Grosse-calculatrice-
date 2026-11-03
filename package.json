@@ -1,15 +1,11 @@
 {
   "name": "calculatrice-facile",
   "version": "1.0.0",
-  "description": "Calculatrice facile par KIBWE ZONGWE Israël",
-  "main": "index.html",
-  "author": "KIBWE ZONGWE Israël",
   "dependencies": {
-    "@capacitor/core": "^6.0.0",
-    "@capacitor/android": "^6.0.0",
-    "@capacitor/splash-screen": "^6.0.0"
+    "@capacitor/core": "6.0.0",
+    "@capacitor/android": "6.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "6.0.0"
   }
 }
