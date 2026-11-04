@@ -32,23 +32,32 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
+      - name: Préparer le dossier web
+        run: |
+          rm -rf www android capacitor.config.json
+          mkdir -p www/images
+          cp index.html www/
+          cp -r images/* www/images/ || cp images/icon.png www/images/ || true
+          ls -la www/
+          ls -la www/images/
+
       - name: Initialisation Capacitor
         run: |
-          rm -rf android capacitor.config.json
-          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=.
+          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=www
 
       - name: Ajouter Android
         run: |
           npx cap add android
           npx cap copy android
+          npx cap sync android
 
       - name: Injecter des icônes
         run: |
-          if [ -f "images/icon.png" ]; then
+          if [ -f "www/images/icon.png" ]; then
             for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
               mkdir -p android/app/src/main/res/$d
-              cp images/icon.png android/app/src/main/res/$d/ic_launcher.png
-              cp images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
+              cp www/images/icon.png android/app/src/main/res/$d/ic_launcher.png
+              cp www/images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
             done
           fi
 
@@ -56,7 +65,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug
 
       - name: Téléverser l'APK
         uses: actions/upload-artifact@v4
