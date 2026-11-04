@@ -24,7 +24,9 @@ jobs:
       - name: Configurer le SDK Android
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
           yes | sdkmanager --licenses || true
 
       - name: Installer les dépendances
@@ -51,21 +53,51 @@ jobs:
           npx cap copy android
           npx cap sync android
 
-      - name: Injecter des icônes
+      - name: Injecter icon et splash REEL
         run: |
-          if [ -f "www/images/icon.png" ]; then
-            for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-              mkdir -p android/app/src/main/res/$d
-              cp www/images/icon.png android/app/src/main/res/$d/ic_launcher.png
-              cp www/images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
-            done
-          fi
+          echo "--- Injection icône ---"
+          for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p android/app/src/main/res/$d
+            cp www/images/icon.png android/app/src/main/res/$d/ic_launcher.png
+            cp www/images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
+            cp www/images/icon.png android/app/src/main/res/$d/ic_launcher_foreground.png || true
+          done
+
+          echo "--- Injection splash ---"
+          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/drawable-nodpi
+          cp www/images/splash.png android/app/src/main/res/drawable/splash.png
+          cp www/images/splash.png android/app/src/main/res/drawable-nodpi/splash.png
+          cp www/images/icon.png android/app/src/main/res/drawable/ic_launcher.png
+
+          echo "--- Vérification ---"
+          ls -lh android/app/src/main/res/mipmap-xxxhdpi/
+          ls -lh android/app/src/main/res/drawable/splash.png
+
+          echo "--- Modification thème splash ---"
+          cat > android/app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+                  <item name="colorPrimary">#3B82F6</item>
+                  <item name="colorPrimaryDark">#2563EB</item>
+                  <item name="colorAccent">#7C3AED</item>
+              </style>
+              <style name="AppTheme.NoActionBar" parent="AppTheme">
+                  <item name="windowActionBar">false</item>
+                  <item name="windowNoTitle">true</item>
+              </style>
+              <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+                  <item name="android:background">@drawable/splash</item>
+              </style>
+          </resources>
+          EOF
 
       - name: CONSTRUCTION
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Téléverser l'APK
         uses: actions/upload-artifact@v4
