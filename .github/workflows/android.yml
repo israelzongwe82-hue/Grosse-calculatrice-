@@ -24,22 +24,18 @@ jobs:
       - name: Configurer le SDK Android
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
-          ls $ANDROID_SDK_ROOT/cmdline-tools/ -la || true
-          # On accepte les licences sans faire planter
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | sdkmanager --licenses || true
 
       - name: Installer les dépendances
         run: |
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Condensateur d'initialisation
+      - name: Initialisation Capacitor
         run: |
           rm -rf android capacitor.config.json
-          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=. --npm-client npm
+          npx cap init "Calculatrice facile" com.kibwe.calculatricefacile --web-dir=.
 
       - name: Ajouter Android
         run: |
@@ -54,10 +50,6 @@ jobs:
               cp images/icon.png android/app/src/main/res/$d/ic_launcher.png
               cp images/icon.png android/app/src/main/res/$d/ic_launcher_round.png
             done
-          fi
-          if [ -f "images/splash.png" ]; then
-            mkdir -p android/app/src/main/res/drawable
-            cp images/splash.png android/app/src/main/res/drawable/splash.png || true
           fi
 
       - name: CONSTRUCTION
